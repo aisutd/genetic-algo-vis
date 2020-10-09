@@ -2,16 +2,17 @@
 let app = new PIXI.Application({
     width: document.body.clientWidth,
     height: document.body.clientHeight,
-    background: 0xcccccc
 });
+app.renderer.backgroundColor = 0xcccccc;
 console.log(document.body.clientHeight)
 //Add the canvas that Pixi automatically created for you to the HTML document
 document.body.appendChild(app.view);
 
-const NUM_CRITTERS = 30;
+const NUM_CRITTERS = 100;
 const MUTATION_RATE = 0.6;
 const MUTATION_PERC = 0.06;
 const MUTATED_PERC = 1;
+var SPEED = 0.25;
 
 var hitTest = function(s2, s1)
 {
@@ -100,18 +101,16 @@ var idTracker = 0;
 let critters = new Map();
 var numCritters = 0;
 
-console.log(0xFF * 0.5 + 0xFF * 0.25 + 0xFF * 0.1);
-
 function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()]){
     //Critter variables - critter size, priority for food, priority for eating strangers
     var rect = new PIXI.Graphics();
-    rect.beginFill(PIXI.utils.rgb2hex([values[0], values[1], values[2]]));
+    rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
     let smallerDim = (app.renderer.height < app.renderer.width ? app.renderer.height : app.renderer.width) * 0.03;
-    let moveSpeed = smallerDim * 0.33
     let critSize = Math.max(smallerDim * values[0], 15);
-    rect.drawRect(0, 0, critSize, critSize)
+    rect.drawRect(0, 0, critSize, critSize);
     var texture = app.renderer.generateTexture(rect);
     var crit = new PIXI.Sprite(texture);
+    crit.critSize = critSize;
     crit.values = values;
     crit.x = x;
     crit.y = y;
@@ -120,33 +119,35 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
     crit.lifespan = 0;
     crit.foodPrio = 0;
     crit.cannibalPrio = 0;
+    crit.moveSpeed = crit.critSize * 0.33;
+    crit.adjustedSpeed = crit.moveSpeed;
     crit.moveUp = () => {
-        if (crit.y >= critSize){
-            crit.y -= moveSpeed;
+        if (crit.y >= crit.critSize){
+            crit.y -= crit.adjustedSpeed;
         }
         else{
             crit.destroy();
         }
     }
     crit.moveDown = () => {
-        if (crit.y <= app.renderer.height - 2 * critSize){
-            crit.y += moveSpeed;
+        if (crit.y <= app.renderer.height - 2 * crit.critSize){
+            crit.y += crit.adjustedSpeed;
         }
         else{
             crit.destroy();
         }
     }
     crit.moveRight = () => {
-        if (crit.x <= app.renderer.width - 2 * critSize){
-            crit.x += moveSpeed;
+        if (crit.x <= app.renderer.width - 2 * crit.critSize){
+            crit.x += crit.adjustedSpeed;
         }
         else{
             crit.destroy();
         }
     }
     crit.moveLeft = () => {
-        if (crit.x >= critSize){
-            crit.x -= moveSpeed;
+        if (crit.x >= crit.critSize){
+            crit.x -= crit.adjustedSpeed;
         }
         else{
             crit.destroy();
@@ -171,7 +172,7 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
 
 function createFood(){
     var food = new PIXI.Graphics();
-    food.beginFill(0xFFFFFF);
+    food.beginFill(0x00CC00);
     let smallerDim = (app.renderer.height < app.renderer.width ? app.renderer.height : app.renderer.width) * 0.03;
     let foodSize = smallerDim * 0.33;
     food.drawRect(0, 0, foodSize, foodSize);
@@ -254,12 +255,13 @@ function checkCritterHit(value){
 
 var generations = 0;
 var timePassed = 0;
-function critterUpdate(value){
+function critterUpdate(value, delta){
     if(value.hp <= 0){
         value.destroy();
     }
-    value.hp -= 0.5;
-    value.lifespan++;
+    value.adjustedSpeed = value.moveSpeed * delta * SPEED;
+    value.hp -= 0.5 * SPEED;
+    value.lifespan += SPEED;
     let closestFood = checkFoodHit(value);
     let closestTarget = closestFood;
     let closestPrio = 0;
@@ -267,10 +269,13 @@ function critterUpdate(value){
     if(numCritters <= 1 || value.foodPrio > Math.abs(value.cannibalPrio)){
         closestTarget = closestFood;
         closestPrio = value.foodPrio;
+        value.moveSpeed = value.critSize * 0.33;
     }
     else{
         closestTarget = closestCritter;
         closestPrio = value.cannibalPrio;
+        if(closestPrio < 0)
+            value.moveSpeed = value.critSize * 0.5;
     }
     if(closestTarget.x < value.x){
         if(closestPrio < 0)
@@ -299,7 +304,7 @@ function critterUpdate(value){
 }
 
 function gameLoop(delta){
-    if(numCritters <= 0 || timePassed > 500){
+    if(numCritters <= 0 || timePassed > 500 / SPEED){
         timePassed = 0;
         generations++;
         let critterList = [];
@@ -332,11 +337,12 @@ function gameLoop(delta){
         console.log("GEN", generations)
     }
     else{
-        critters.forEach(critterUpdate);
+        critters.forEach(critter => critterUpdate(critter, delta));
         timePassed++;
     }
 }
-app.ticker.add(delta => gameLoop(delta));
+
+app.ticker.add(gameLoop);
 
 let rightKey = keyboard('ArrowRight');
 rightKey.press = () => {
