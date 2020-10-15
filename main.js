@@ -9,28 +9,26 @@ console.log(document.body.clientHeight)
 document.body.appendChild(app.view);
 
 const NUM_CRITTERS = 100;
-const MUTATION_RATE = 0.6;
-const MUTATION_PERC = 0.06;
-const MUTATED_PERC = 1;
-var SPEED = 0.25;
+const MUTATION_RATE = 0.5;
+const MUTATION_PERC = 0.1;
+const MUTATED_PERC = 0.75;
+const DIFF = 0.001;
+var SPEED = 0.5;
 
 var hitTest = function(s2, s1)
 {
-    var x1 = s1.x - (s1.width/2),
-    y1 = s1.y - (s1.height/2),
+    var x1 = s1.x + (s1.width/2),
+    y1 = s1.y + (s1.height/2),
     w1 = s1.width,
     h1 = s1.height,
-    x2 = s2.x - ( s2.width / 2 ),
-    y2 = s2.y - ( s2.height / 2 ),
+    x2 = s2.x + ( s2.width / 2 ),
+    y2 = s2.y + ( s2.height / 2 ),
     w2 = s2.width,
     h2 = s2.height;
-
-    if (x1 + w1 > x2)
-        if (x1 < x2 + w2)
-            if (y1 + h1 > y2)
-                if (y1 < y2 + h2)
-                    return true;
-
+    
+    if(Math.abs(x2 - x1) + Math.abs(y2 - y1) < Math.max(w1 + 5, w2 + 5)){
+        return true;
+    }
     return false;
 };
 
@@ -85,8 +83,8 @@ var idTracker = 0;
 let critters = new Map();
 var numCritters = 0;
 
-function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()]){
-    //Critter variables - critter size, priority for food, priority for eating strangers
+function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()], size=15){
+    //Critter variables - priority for eating strangers, priority for food, priority for escaping
     var rect = new PIXI.Graphics();
     rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
     let smallerDim = (app.renderer.height < app.renderer.width ? app.renderer.height : app.renderer.width) * 0.03;
@@ -103,38 +101,27 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
     crit.lifespan = 0;
     crit.foodPrio = 0;
     crit.cannibalPrio = 0;
+    crit.cowardPrio = 0;
     crit.moveSpeed = crit.critSize * 0.33;
     crit.adjustedSpeed = crit.moveSpeed;
     crit.moveUp = () => {
         if (crit.y >= crit.critSize){
             crit.y -= crit.adjustedSpeed;
         }
-        else{
-            crit.destroy();
-        }
     }
     crit.moveDown = () => {
         if (crit.y <= app.renderer.height - 2 * crit.critSize){
             crit.y += crit.adjustedSpeed;
-        }
-        else{
-            crit.destroy();
         }
     }
     crit.moveRight = () => {
         if (crit.x <= app.renderer.width - 2 * crit.critSize){
             crit.x += crit.adjustedSpeed;
         }
-        else{
-            crit.destroy();
-        }
     }
     crit.moveLeft = () => {
         if (crit.x >= crit.critSize){
             crit.x -= crit.adjustedSpeed;
-        }
-        else{
-            crit.destroy();
         }
     }
     crit.destroy = () => {
@@ -142,10 +129,16 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
         app.stage.removeChild(crit);
         numCritters--;
     }
+    crit.updateSize = function(newSize){
+        crit.scale._x = newSize / crit.critSize;
+        crit.scale._y = newSize / crit.critSize;
+        crit.critSize = newSize;
+        // console.log(crit.height, crit.critSize);
+    }
     crit.interactive = true;
     crit.buttonMode = true;
     var onClick = (event) => {
-        console.log(crit.hp)
+        console.log(crit.x, crit.y, crit.x - crit.width, crit.y - crit.height, crit.width, crit.critSize, crit.id);
     }
     crit.on('pointerdown', onClick)
     critters.set(crit.id, crit);
@@ -199,40 +192,51 @@ function checkFoodHit(value){
 }
 
 function checkCritterHit(value){
-    let closestCritter = undefined;
-    let closestDis = 1000000;
-    let closestEatable = false;
-    let eatable = false;
+    let closestDangerCritter = undefined;
+    let closestEatableCritter = undefined;
+    let closestDangerDis = 1000000;
+    let closestEatableDis = 1000000;
+
+    let errorCritters = 0;
     critters.forEach(c => {
         if(value.id != c.id){
-            eatable = false;
-            if(Math.abs(value.values[0] + value.values[1] + value.values[2] - c.values[0] - c.values[1] - c.values[2]) > 0.05){
+            if(Math.abs(value.values[0] - c.values[0]) > DIFF || Math.abs(value.values[1] - c.values[1]) > DIFF || Math.abs(value.values[2] - c.values[2]) > DIFF){
                 if(value.critSize > c.critSize){
-                    eatable = true;
                     if(hitTest(value, c)){
-                        if(value.critSize > c.critSize){
-                            value.hp += c.hp;
-                            value.critSize -= c.critSize * 0.2;
-                            c.destroy();
+                        value.hp += c.hp;
+                        value.updateSize(value.critSize + c.critSize * 0.1);
+                        c.destroy();
+                    }
+                    else{
+                        if(distance(value, c) < closestEatableDis){
+                            closestEatableDis = distance(value, c);
+                            closestEatableCritter = c;
                         }
-                        else if(value.critSize < c.critSize){
+                    }
+                }
+                if(value.critSize < c.critSize){
+                    if(hitTest(value, c)){
+                        if(value.critSize < c.critSize){
                             c.hp += value.hp;
-                            c.critSize -= value.critSize * 0.2;
+                            c.updateSize(c.critSize + value.critSize * 0.1);
                             value.destroy();
+                        }
+                    }
+                    else{
+                        if(distance(value, c) < closestDangerDis){
+                            closestDangerDis = distance(value, c);
+                            closestDangerCritter = c;
                         }
                     }
                 }
             }
-            if(distance(value, c) < closestDis){
-                closestDis = distance(value, c);
-                closestCritter = c;
-                closestEatable = eatable;
-            }
         }
     });
-    value.cannibalPrio = 1 / closestDis * value.values[2];
-    value.cannibalPrio *= eatable ? -1 : 1;
-    return closestCritter;
+    if(errorCritters > 0)
+        console.log(errorCritters);
+    value.cannibalPrio = 1 / closestEatableDis * value.values[2];
+    value.cowardPrio = 1 / closestDangerDis * value.values[0];
+    return closestDangerCritter, closestEatableCritter;
 }
 
 var generations = 0;
@@ -246,39 +250,42 @@ function critterUpdate(value, delta){
     value.lifespan += SPEED;
     let closestFood = checkFoodHit(value);
     let closestTarget = closestFood;
-    let closestPrio = 0;
-    let closestCritter = checkCritterHit(value);
-    if(numCritters <= 1 || value.foodPrio > Math.abs(value.cannibalPrio)){
+    let running = false;
+    let closestDangerCritter, closestEatableCritter = checkCritterHit(value);
+    if(numCritters == 1 || (closestDangerCritter == undefined && closestEatableCritter == undefined) || (value.foodPrio > value.cannibalPrio && value.foodPrio > value.cowardPrio)){
         closestTarget = closestFood;
         closestPrio = value.foodPrio;
         value.moveSpeed = value.critSize * 0.33;
     }
-    else{
-        closestTarget = closestCritter;
+    else if(closestDangerCritter == undefined || value.cannibalPrio > value.cowardPrio){
+        closestTarget = closestEatableCritter;
         closestPrio = value.cannibalPrio;
-        if(closestPrio < 0)
-            value.moveSpeed = value.critSize * 0.5;
+    }
+    else{
+        closestTarget = closestDangerCritter;
+        closestPrio = value.cowardPrio;
+        running = true;
     }
     if(closestTarget.x < value.x){
-        if(closestPrio < 0)
+        if(running)
             value.moveRight();
         else
             value.moveLeft();
     }
     else if(closestTarget.x > value.x){
-        if(closestPrio < 0)
+        if(running)
             value.moveLeft();
         else
             value.moveRight();
     }
     if(closestTarget.y < value.y){
-        if(closestPrio < 0)
+        if(running)
             value.moveDown();
         else
             value.moveUp();
     }
     else if(closestTarget.y > value.y){
-        if(closestPrio < 0)
+        if(running)
             value.moveUp();
         else
             value.moveDown();
@@ -286,18 +293,16 @@ function critterUpdate(value, delta){
 }
 
 function gameLoop(delta){
-    if(numCritters <= 0 || timePassed > 500 / SPEED){
+    if(numCritters <= 1 || timePassed > 500 / SPEED){
         timePassed = 0;
         generations++;
         let critterList = [];
         for(let [key, value] of critters){
-            console.log(key, value)
             critterList.push({k: key, val: value.hp});
         }
         critterList = critterList.sort(function(a, b){
             return a.val < b.val;
         });
-        console.log(critterList)
         //Pop all bad critters from end of list
         while(critterList.length > 5){
             critters.get(critterList.pop().k).destroy();
@@ -305,13 +310,14 @@ function gameLoop(delta){
         //Add new critters
         while(numCritters < NUM_CRITTERS * MUTATED_PERC){
             let baseCritID = critterList[Math.floor(Math.random() * critterList.length)].k
-            console.log('CRIT', baseCritID);
             let baseCrit = critters.get(baseCritID);
             let vals = baseCrit.values;
             for(let i = 0; i < vals.length; i++)
                 if(Math.random() > MUTATION_RATE)
                     vals[i] *= (1 - MUTATION_PERC) + 2 * MUTATION_PERC * Math.random()
-            createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height, values=vals)
+            let s = baseCrit.critSize;
+            s *= (1 - MUTATION_PERC) + 2 * MUTATION_PERC * Math.random();
+            createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height, values=vals, size=s)
         }
         while(numCritters < NUM_CRITTERS){
             createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height);
