@@ -34,13 +34,6 @@ var hitTest = function(s2, s1)
     return false;
 };
 
-function createWall(x, y, w, h){
-    var wall = new PIXI.Graphics();
-    wall.beginFill(0xCCCCCC)
-    wall.drawRect(x, y, w, h);
-    return wall;
-}
-
 function keyboard(value) {
     let key = {};
     key.value = value;
@@ -87,15 +80,6 @@ function keyboard(value) {
     
     return key;
 }
-
-let wallWidth = Math.round(document.body.clientWidth * 0.01)
-let wallHeight = Math.round(document.body.clientHeight * 0.01)
-// let walls = [
-//     createWall(0, 0, wallWidth, document.body.clientHeight),
-//     createWall(document.body.clientWidth - wallWidth, 0, wallWidth, document.body.clientHeight),
-//     createWall(0, 0, document.body.clientWidth, wallHeight),
-//     createWall(0, document.body.clientHeight - wallHeight, document.body.clientWidth, wallHeight),
-// ]
 
 var idTracker = 0;
 let critters = new Map();
@@ -192,8 +176,6 @@ for(i = 0; i < 100; i++)
 for(var i = 0; i < NUM_CRITTERS; i++){
     createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height)
 }
-// for(i = 0; i < walls.length; i++)
-//     app.stage.addChild(walls[i]);
 
 function distance(obj1, obj2){
     return Math.abs(obj1.x - obj2.x) + Math.abs(obj1.y - obj2.y);
