@@ -1,19 +1,161 @@
 //Create a Pixi Application
+var visualizationDiv = document.getElementById('visualization');
+let dims = visualizationDiv.getBoundingClientRect();
 let app = new PIXI.Application({
-    width: document.body.clientWidth,
-    height: document.body.clientHeight,
+    // width: document.body.clientWidth,
+    // height: document.body.clientHeight,
+    width: dims.width,
+    height: dims.height,
 });
 app.renderer.backgroundColor = 0xcccccc;
 console.log(document.body.clientHeight)
 //Add the canvas that Pixi automatically created for you to the HTML document
-document.body.appendChild(app.view);
+visualizationDiv.appendChild(app.view);
 
-const NUM_CRITTERS = 100;
-const MUTATION_RATE = 0.5;
-const MUTATION_PERC = 0.1;
-const MUTATED_PERC = 0.75;
+var NUM_CRITTERS = 20;
+var MUTATION_RATE = 0.5;
+var MUTATION_PERC = 0.1;
+var MUTATED_PERC = 0.75;
 const DIFF = 0.001;
 var SPEED = 0.5;
+const SelectionMethods = Object.freeze({
+    "kbest" : 1,
+    "tournament" : 2,
+    "roulette" : 3
+});
+var SELECTION_METHOD = SelectionMethods.kbest;
+
+var restartFunc;
+
+Formio.createForm(document.getElementById('form'), {
+    "components": [
+        {
+            "label": "Description",
+            "attrs": [
+                {
+                    "attr": "",
+                    "value": ""
+                }
+            ],
+            "content": "Welcome to AIS's Genetic Algorithm Visualization! The objective of the square \"critters\" on the right is to survive as long as possible and expand their-color species! Adjust the parameters below and see how it affects the genetic algorithm.",
+            "refreshOnChange": false,
+            "key": "description",
+            "type": "htmlelement",
+            "input": false,
+            "tableView": false
+        },
+        {
+            "label": "Speed of the visualization:",
+            "labelPosition": "left-left",
+            "autocomplete": "off",
+            "tableView": true,
+            "key": "speedOfTheVisualization",
+            "type": "textfield",
+            "input": true,
+            "labelMargin": 2,
+            "labelWidth": 25
+        },
+        {
+            "label": "Number of Critters",
+            "labelPosition": "left-left",
+            "placeholder": "10",
+            "description": "Number of critters per generation",
+            "tableView": true,
+            "key": "numberOfCritters",
+            "type": "textfield",
+            "input": true,
+            "labelWidth": 25,
+            "labelMargin": 2
+        },
+        {
+            "label": "Mutated Percentage",
+            "labelPosition": "left-left",
+            "placeholder": "75",
+            "description": "% of critters per generation that are mutated from last generation selection",
+            "tableView": true,
+            "key": "mutatedPercentage",
+            "type": "textfield",
+            "input": true,
+            "labelWidth": 25,
+            "labelMargin": 2
+        },
+        {
+            "label": "Mutation Rate",
+            "labelPosition": "left-left",
+            "placeholder": "50",
+            "description": "% chance to change genes of critter for mutation",
+            "tableView": true,
+            "key": "mutationRate",
+            "type": "textfield",
+            "input": true,
+            "labelWidth": 25,
+            "labelMargin": 2
+        },
+        {
+            "label": "Mutation Modifier",
+            "labelPosition": "left-left",
+            "placeholder": "10",
+            "description": "% to mutate a weight once it has been selected",
+            "tableView": true,
+            "key": "mutationModifier",
+            "type": "textfield",
+            "input": true,
+            "labelWidth": 25,
+            "labelMargin": 2
+        },
+        {
+            "label": "Apply",
+            "action": "event",
+            "showValidations": false,
+            "description": "Restart visualization with new genetic algorithm settings.",
+            "tableView": false,
+            "key": "apply",
+            "type": "button",
+            "input": true,
+            "event": "refreshData"
+        }
+    ]
+}).then(function(form){
+    form.on('refreshData', (values) => {
+        console.log(values);
+        if(values.speedOfTheVisualization){
+            SPEED = values.speedOfTheVisualization;
+        }
+        if(values.numberOfCritters){
+            NUM_CRITTERS = values.numberOfCritters;
+        }
+        if(values.mutatedPercentage){
+            let perc = Math.max(values.mutatedPercentage, 0);
+            perc = Math.min(values.mutatedPercentage, 100);
+            MUTATED_PERC = perc / 100;
+        }
+        if(values.mutationRate){
+            let perc = Math.max(values.mutationRate, 0);
+            perc = Math.min(values.mutationRate, 100);
+            MUTATION_RATE = values.mutationRate;
+        }
+        if(values.mutationModifier){
+            let perc = Math.max(values.mutationModifier, 0);
+            perc = Math.min(values.mutationModifier, 100);
+            MUTATION_PERC = values.mutationModifier;
+        }
+    });
+});
+
+function weighted_random(items, weights) {  // https://stackoverflow.com/a/55671924
+    var i;
+
+    for (i = 0; i < weights.length; i++)
+        weights[i] += weights[i - 1] || 0;
+    
+    var random = Math.random() * weights[weights.length - 1];
+    
+    for (i = 0; i < weights.length; i++)
+        if (weights[i] > random)
+            break;
+    
+    return items[i];
+}
 
 var hitTest = function(s2, s1)
 {
@@ -81,6 +223,7 @@ function keyboard(value) {
 
 var idTracker = 0;
 let critters = new Map();
+var destroyedCritters = new Map();
 var numCritters = 0;
 
 function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()], size=15){
@@ -125,15 +268,31 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
         }
     }
     crit.destroy = () => {
-        critters.delete(crit.id);
-        app.stage.removeChild(crit);
-        numCritters--;
+        if (!(crit.id in destroyedCritters)){
+            if(critters.delete(crit.id)){
+                destroyedCritters.set(crit.id, crit);
+                app.stage.removeChild(crit);
+                numCritters--;
+            }
+            else{
+                console.error("FAILED TO DESTROY ", crit.id);
+            }
+        }
     }
     crit.updateSize = function(newSize){
         crit.scale._x = newSize / crit.critSize;
         crit.scale._y = newSize / crit.critSize;
         crit.critSize = newSize;
         // console.log(crit.height, crit.critSize);
+    }
+    crit.reset = () => {
+        crit.hp = 100;
+        crit.lifespan = 0;
+        crit.foodPrio = 0;
+        crit.cannibalPrio = 0;
+        crit.cowardPrio = 0;
+        crit.moveSpeed = crit.critSize * 0.33;
+        crit.adjustedSpeed = crit.moveSpeed;
     }
     crit.interactive = true;
     crit.buttonMode = true;
@@ -296,21 +455,73 @@ function gameLoop(delta){
     if(numCritters <= 1 || timePassed > 500 / SPEED){
         timePassed = 0;
         generations++;
-        let critterList = [];
-        for(let [key, value] of critters){
-            critterList.push({k: key, val: value.hp});
-        }
-        critterList = critterList.sort(function(a, b){
-            return a.val < b.val;
+        let critterList = [];   // Stores population
+        console.log(SELECTION_METHOD);
+        destroyedCritters.forEach(critter => console.log(critter.id, numCritters));
+        console.log("NUM CRITTERS PRE: ", numCritters);
+        critters.forEach(critter => {
+            console.log(critter.id, numCritters);
+            critter.destroy();
         });
-        //Pop all bad critters from end of list
-        while(critterList.length > 5){
-            critters.get(critterList.pop().k).destroy();
+        console.log("NUM CRITTERS BEFORE: ", numCritters);
+        for(let [key, crit] of destroyedCritters){
+            critterList.push(crit);
         }
+        if(SELECTION_METHOD == SelectionMethods.kbest){
+            console.log(critterList);
+            critterList = critterList.sort(function(a, b){
+                return b.hp - a.hp;
+            });
+            // Pop all bad critters from end of list
+            while(critterList.length > 5){
+                crit = critterList.pop()
+            }
+            console.log(critterList);
+        }
+        else if(SELECTION_METHOD == SelectionMethods.tournament){
+            console.log(critterList);
+            const NUM_TOURNEYS = 5;
+            let tempPopulation = new Array(NUM_TOURNEYS);
+            for(i = 0; i < tempPopulation.length; i++)
+                tempPopulation[i] = [];
+            k = 0
+            for(let crit of critterList){
+                tempPopulation[k % NUM_TOURNEYS].push(crit);
+                k += 1
+            }
+            critterList = [];
+            for(i = 0; i < NUM_TOURNEYS; i++){
+                tempPopulation[i] = tempPopulation[i].sort(function(a, b){
+                    return b.hp - a.hp;
+                });
+                if(tempPopulation[i].length > 0){
+                    while(tempPopulation[i].length > 1){
+                        crit = tempPopulation[i].pop();
+                        // critters.get(crit[0]).destroy();
+                    }
+                    critterList.push(tempPopulation[i][0]);
+                }
+            }
+            console.log(critterList);
+        }
+        else if(SELECTION_METHOD == SelectionMethods.roulette){
+            weights = []
+            weightSum = 0
+            critters.forEach(critter => {
+                weights.push(critter.hp);
+                weightSum += critter.hp
+            });
+            for(var i = 0; i < weights.length; i++){
+                weights[i] /= weightSum;
+            }
+            console.log(weights);
+            console.log(weights.reduce((a, b) => a + b, 0));
+        }
+        console.log("NUM CRITTERS MIDDLE: ", numCritters);
         //Add new critters
-        while(numCritters < NUM_CRITTERS * MUTATED_PERC){
-            let baseCritID = critterList[Math.floor(Math.random() * critterList.length)].k
-            let baseCrit = critters.get(baseCritID);
+        while(numCritters < (NUM_CRITTERS - critterList.length) * MUTATED_PERC){
+            let baseCrit = critterList[Math.floor(Math.random() * critterList.length)]
+            // let baseCrit = critters.get(baseCritID);
             let vals = baseCrit.values;
             for(let i = 0; i < vals.length; i++)
                 if(Math.random() > MUTATION_RATE)
@@ -319,13 +530,28 @@ function gameLoop(delta){
             s *= (1 - MUTATION_PERC) + 2 * MUTATION_PERC * Math.random();
             createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height, values=vals, size=s)
         }
-        while(numCritters < NUM_CRITTERS){
+        while(numCritters < (NUM_CRITTERS - critterList.length)){
             createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height);
         }
-        console.log("GEN", generations)
+        for(let crit of critterList){
+            crit.reset();
+            critters.set(crit.id, crit);
+            numCritters++;
+        }
+        critters.forEach(critter => {
+            console.log("CRITTERCHECK");
+        });
+        destroyedCritters.clear();
+        console.log("GEN", generations);
+        console.log("NUM CRITTERS END: ", numCritters);
     }
     else{
-        critters.forEach(critter => critterUpdate(critter, delta));
+        let i = 0;
+        critters.forEach(critter => {
+            critterUpdate(critter, delta);
+            i++;
+        });
+        // console.log(i);
         timePassed++;
     }
 }
