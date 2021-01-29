@@ -300,10 +300,13 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
         console.log(crit.x, crit.y, crit.x - crit.width, crit.y - crit.height, crit.width, crit.critSize, crit.id);
     }
     crit.on('pointerdown', onClick)
-    critters.set(crit.id, crit);
-    app.stage.addChild(crit);
     numCritters++;
     return crit
+}
+
+function addCritter(crit){
+    critters.set(crit.id, crit);
+    app.stage.addChild(crit);
 }
 
 function createFood(){
@@ -326,7 +329,7 @@ for(i = 0; i < 100; i++)
     foods.push(createFood());
 
 for(var i = 0; i < NUM_CRITTERS; i++){
-    createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height)
+    addCritter(createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height));
 }
 
 function distance(obj1, obj2){
@@ -365,6 +368,7 @@ function checkCritterHit(value){
                         value.hp += c.hp;
                         value.updateSize(value.critSize + c.critSize * 0.1);
                         c.destroy();
+                        console.log('EATING');
                     }
                     else{
                         if(distance(value, c) < closestEatableDis){
@@ -380,6 +384,7 @@ function checkCritterHit(value){
                             c.updateSize(c.critSize + value.critSize * 0.1);
                             value.destroy();
                         }
+                        console.log('EATEN');
                     }
                     else{
                         if(distance(value, c) < closestDangerDis){
@@ -506,18 +511,17 @@ function gameLoop(delta){
         }
         else if(SELECTION_METHOD == SelectionMethods.roulette){
             weights = []
-            weightSum = 0
-            critters.forEach(critter => {
-                weights.push(critter.hp);
-                weightSum += critter.hp
-            });
-            for(var i = 0; i < weights.length; i++){
-                weights[i] /= weightSum;
+            for(let crit of critterList){
+                weights.push(crit.hp);
             }
-            console.log(weights);
-            console.log(weights.reduce((a, b) => a + b, 0));
+            // TODO: Finish this. Issue: Need to "copy" critter without adding it to critters set. Requires small rewrite
+            const NUM_SELECTED = 5;
+            let tempPopulation = [];
+            for(i = 0; i < NUM_SELECTED; i++)
+                tempPopulation[i] = weighted_random(critterList, weights);
+            critterList = tempPopulation;
         }
-        console.log("NUM CRITTERS MIDDLE: ", numCritters);
+        console.log("NUM CRITTERS MIDDLE: ", numCritters, critterList.length);
         //Add new critters
         while(numCritters < (NUM_CRITTERS - critterList.length) * MUTATED_PERC){
             let baseCrit = critterList[Math.floor(Math.random() * critterList.length)]
@@ -528,18 +532,19 @@ function gameLoop(delta){
                     vals[i] *= (1 - MUTATION_PERC) + 2 * MUTATION_PERC * Math.random()
             let s = baseCrit.critSize;
             s *= (1 - MUTATION_PERC) + 2 * MUTATION_PERC * Math.random();
-            createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height, values=vals, size=s)
+            addCritter(createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height, values=vals, size=s));
         }
         while(numCritters < (NUM_CRITTERS - critterList.length)){
-            createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height);
+            addCritter(createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height));
         }
         for(let crit of critterList){
             crit.reset();
             critters.set(crit.id, crit);
             numCritters++;
         }
+        test = 0
         critters.forEach(critter => {
-            console.log("CRITTERCHECK");
+            console.log("CRITTERCHECK" + test++);
         });
         destroyedCritters.clear();
         console.log("GEN", generations);
