@@ -24,3 +24,8 @@ docs/site/
 Manifest.toml
 .vscode/launch.json
 *.log
+.vs/ProjectSettings.json
+.vs/slnx.sqlite
+.vs/VSWorkspaceState.json
+.vs/genetic-algo-vis/config/applicationhost.config
+.vs/genetic-algo-vis/v16/.suo
