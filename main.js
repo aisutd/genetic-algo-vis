@@ -23,8 +23,14 @@ const SelectionMethods = Object.freeze({
     "tournament" : 2,
     "roulette" : 3
 });
+const FitnessMethods = Object.freeze({
+    "hp" : 1,
+    "crittersEaten" : 2,
+    "foodEaten" : 3,
+    "timeAlive" : 4
+})
 var SELECTION_METHOD = SelectionMethods.kbest;
-
+var FITNESS_METHOD = FitnessMethods.hp;
 var restartFunc;
 
 Formio.createForm(document.getElementById('form'), {
@@ -229,7 +235,8 @@ var numCritters = 0;
 function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()], size=15){
     //Critter variables - priority for eating strangers, priority for food, priority for escaping
     var rect = new PIXI.Graphics();
-    rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
+    // rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
+    rect.beginFill(PIXI.utils.rgb2hex([0, 0, 0]));
     let smallerDim = (app.renderer.height < app.renderer.width ? app.renderer.height : app.renderer.width) * 0.03;
     let critSize = Math.max(smallerDim * values[0], 15);
     rect.drawRect(0, 0, critSize, critSize);
@@ -242,6 +249,8 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
     crit.id = ++idTracker;
     crit.hp = 100;
     crit.lifespan = 0;
+    crit.foodEaten = 0;
+    crit.crittersEaten = 0;
     crit.foodPrio = 0;
     crit.cannibalPrio = 0;
     crit.cowardPrio = 0;
@@ -288,6 +297,8 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
     crit.reset = () => {
         crit.hp = 100;
         crit.lifespan = 0;
+        crit.crittersEaten = 0;
+        crit.foodEaten = 0;
         crit.foodPrio = 0;
         crit.cannibalPrio = 0;
         crit.cowardPrio = 0;
@@ -302,6 +313,17 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
     crit.on('pointerdown', onClick)
     numCritters++;
     return crit
+}
+
+function getFitness(crit){
+    if (FITNESS_METHOD == FitnessMethods.hp)
+        return crit.hp;
+    else if(FITNESS_METHOD == FitnessMethods.timeAlive)
+        return crit.lifespan;
+    else if(FITNESS_METHOD == FitnessMethods.crittersEaten)
+        return crit.crittersEaten;
+    else if(FITNESS_METHOD == FitnessMethods.foodEaten)
+        return crit.foodEaten;
 }
 
 function addCritter(crit){
@@ -343,6 +365,7 @@ function checkFoodHit(value){
         if(hitTest(value, f)){
             f.move();
             value.hp += 10;
+            value.foodEaten += 1;
         }
         if(distance(value, f) < closestDis){
             closestDis = distance(value, f);
@@ -366,6 +389,7 @@ function checkCritterHit(value){
                 if(value.critSize > c.critSize){
                     if(hitTest(value, c)){
                         value.hp += c.hp;
+                        value.crittersEaten += 1;
                         value.updateSize(value.critSize + c.critSize * 0.1);
                         c.destroy();
                         console.log('EATING');
@@ -378,20 +402,24 @@ function checkCritterHit(value){
                     }
                 }
                 if(value.critSize < c.critSize){
-                    if(hitTest(value, c)){
-                        if(value.critSize < c.critSize){
-                            c.hp += value.hp;
-                            c.updateSize(c.critSize + value.critSize * 0.1);
-                            value.destroy();
-                        }
-                        console.log('EATEN');
+                    if(distance(value, c) < closestDangerDis){
+                        closestDangerDis = distance(value, c);
+                        closestDangerCritter = c;
                     }
-                    else{
-                        if(distance(value, c) < closestDangerDis){
-                            closestDangerDis = distance(value, c);
-                            closestDangerCritter = c;
-                        }
-                    }
+                    // if(hitTest(value, c)){
+                    //     if(value.critSize < c.critSize){
+                    //         c.hp += value.hp;
+                    //         c.updateSize(c.critSize + value.critSize * 0.1);
+                    //         value.destroy();
+                    //     }
+                    //     console.log('EATEN');
+                    // }
+                    // else{
+                    //     if(distance(value, c) < closestDangerDis){
+                    //         closestDangerDis = distance(value, c);
+                    //         closestDangerCritter = c;
+                    //     }
+                    // }
                 }
             }
         }
@@ -410,7 +438,7 @@ function critterUpdate(value, delta){
         value.destroy();
     }
     value.adjustedSpeed = value.moveSpeed * delta * SPEED;
-    value.hp -= 0.5 * SPEED;
+    value.hp -= 0.33 * SPEED;
     value.lifespan += SPEED;
     let closestFood = checkFoodHit(value);
     let closestTarget = closestFood;
@@ -475,7 +503,7 @@ function gameLoop(delta){
         if(SELECTION_METHOD == SelectionMethods.kbest){
             console.log(critterList);
             critterList = critterList.sort(function(a, b){
-                return b.hp - a.hp;
+                return getFitness(b) - getFitness(a);
             });
             // Pop all bad critters from end of list
             while(critterList.length > 5){
@@ -497,7 +525,7 @@ function gameLoop(delta){
             critterList = [];
             for(i = 0; i < NUM_TOURNEYS; i++){
                 tempPopulation[i] = tempPopulation[i].sort(function(a, b){
-                    return b.hp - a.hp;
+                    return getFitness(b) - getFitness(a);
                 });
                 if(tempPopulation[i].length > 0){
                     while(tempPopulation[i].length > 1){
@@ -512,7 +540,7 @@ function gameLoop(delta){
         else if(SELECTION_METHOD == SelectionMethods.roulette){
             weights = []
             for(let crit of critterList){
-                weights.push(crit.hp);
+                weights.push(getFitness(crit));
             }
             // TODO: Finish this. Issue: Need to "copy" critter without adding it to critters set. Requires small rewrite
             const NUM_SELECTED = 5;
