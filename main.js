@@ -610,7 +610,7 @@ function gameLoop(delta){
             critterList.push(crit);
         }
         fitnessChart.data.datasets.forEach((dataset) => {
-            dataset.data.push(sum / critterList.length)
+            dataset.data.push(sum / critterList.length);
         });
         fitnessChart.update();
 
