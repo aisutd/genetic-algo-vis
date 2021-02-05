@@ -1,5 +1,27 @@
 //Create a Pixi Application
 var visualizationDiv = document.getElementById('visualization');
+var graphCtx = document.getElementById('graph');
+let fitnessData = []
+var fitnessChart = new Chart(graphCtx, {
+    type: 'line',
+    data: {
+        'datasets':[
+            {
+                'label': 'Fitness Graph Over Generations',
+                'data': fitnessData,
+                'fill': false,
+                'cubicInterpolationMode': 'monotone',
+            }
+        ]
+    },
+    label: 'Fitness Graph Over Generations',
+    xAxisID: 'Generations',
+    yAxisID: 'Average Gen. Fitness',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    options: {
+        maintainAspectRatio: false,
+    }
+});
 let dims = visualizationDiv.getBoundingClientRect();
 let app = new PIXI.Application({
     // width: document.body.clientWidth,
@@ -110,6 +132,74 @@ Formio.createForm(document.getElementById('form'), {
             "labelMargin": 2
         },
         {
+            "label": "Select Fitness Function",
+            "labelPosition": "left-left",
+            "widget": "html5",
+            "placeholder": "HP",
+            "description": "Choose the Fitness option the Genetic Algorithm will optimize for",
+            "uniqueOptions": true,
+            "tableView": true,
+            "data": {
+                "values": [
+                    {
+                        "label": "HP",
+                        "value": "hp"
+                    },
+                    {
+                        "label": "Critters Eaten",
+                        "value": "crittersEaten"
+                    },
+                    {
+                        "label": "Food Eaten",
+                        "value": "foodEaten"
+                    },
+                    {
+                        "label": "Time Alive",
+                        "value": "timeAlive"
+                    }
+                ]
+            },
+            "dataType": "string",
+            "selectThreshold": 0.3,
+            "key": "selectFitnessFunction",
+            "type": "select",
+            "labelWidth": 25,
+            "labelMargin": 2,
+            "input": true,
+            "defaultValue": "hp"
+        },
+        {
+            "label": "Selection Method Options",
+            "labelPosition": "left-left",
+            "optionsLabelPosition": "right",
+            "description": "Method used to select critters to use in every generation.",
+            "inline": false,
+            "tableView": false,
+            "values": [
+                {
+                    "label": "K-Best",
+                    "value": "kBest",
+                    "shortcut": ""
+                },
+                {
+                    "label": "Tournament",
+                    "value": "tournament",
+                    "shortcut": ""
+                },
+                {
+                    "label": "Roulette",
+                    "value": "roulette",
+                    "shortcut": ""
+                }
+            ],
+            "key": "selectionMethodOptions",
+            "type": "radio",
+            "input": true,
+            "defaultValue": "kBest",
+            "labelWidth": 25,
+            "labelMargin": 2
+        },
+        {
             "label": "Apply",
             "action": "event",
             "showValidations": false,
@@ -144,6 +234,24 @@ Formio.createForm(document.getElementById('form'), {
             let perc = Math.max(values.mutationModifier, 0);
             perc = Math.min(values.mutationModifier, 100);
             MUTATION_PERC = values.mutationModifier;
+        }
+        if(values.selectFitnessFunction){
+            if(values.selectFitnessFunction == 'hp')
+                FITNESS_METHOD = FitnessMethods.hp;
+            else if(values.selectFitnessFunction == 'crittersEaten')
+                FITNESS_METHOD = FitnessMethods.crittersEaten;
+            else if(values.selectFitnessFunction == 'foodEaten')
+                FITNESS_METHOD = FitnessMethods.foodEaten;
+            else
+                FITNESS_METHOD = FitnessMethods.timeAlive;
+        }
+        if(values.selectionMethodOptions){
+            if(values.selectionMethodOptions == 'tournament')
+                SELECTION_METHOD = SelectionMethods.tournament;
+            else if(values.selectionMethodOption == 'kBest')
+                SELECTION_METHOD == SelectionMethods.kbest;
+            else
+                SELECTION_METHOD == SelectionMethods.roulette;
         }
     });
 });
@@ -235,8 +343,7 @@ var numCritters = 0;
 function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()], size=15){
     //Critter variables - priority for eating strangers, priority for food, priority for escaping
     var rect = new PIXI.Graphics();
-    // rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
-    rect.beginFill(PIXI.utils.rgb2hex([0, 0, 0]));
+    rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
     let smallerDim = (app.renderer.height < app.renderer.width ? app.renderer.height : app.renderer.width) * 0.03;
     let critSize = Math.max(smallerDim * values[0], 15);
     rect.drawRect(0, 0, critSize, critSize);
@@ -438,7 +545,7 @@ function critterUpdate(value, delta){
         value.destroy();
     }
     value.adjustedSpeed = value.moveSpeed * delta * SPEED;
-    value.hp -= 0.33 * SPEED;
+    value.hp -= 0.15 * SPEED;
     value.lifespan += SPEED;
     let closestFood = checkFoodHit(value);
     let closestTarget = closestFood;
@@ -496,10 +603,17 @@ function gameLoop(delta){
             console.log(critter.id, numCritters);
             critter.destroy();
         });
+        let sum = 0;
         console.log("NUM CRITTERS BEFORE: ", numCritters);
         for(let [key, crit] of destroyedCritters){
+            sum += getFitness(crit);
             critterList.push(crit);
         }
+        fitnessChart.data.datasets.forEach((dataset) => {
+            dataset.data.push(sum / critterList.length)
+        });
+        fitnessChart.update();
+
         if(SELECTION_METHOD == SelectionMethods.kbest){
             console.log(critterList);
             critterList = critterList.sort(function(a, b){

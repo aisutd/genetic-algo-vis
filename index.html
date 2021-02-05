@@ -14,14 +14,18 @@
     }
     #visualization{
       width: 80%;
-      height: 100%;
+      height: 80%;
       float: left;
       display: inline-block;
     }
     #form{
       width: 20%;
-      height: 100%;
+      height: 80%;
       display: inline-block;
+    }
+    #graph{
+      height:20%;
+      display: block;
     }
     canvas {
       display: block;
@@ -30,10 +34,14 @@
 </head>
 <script src="pixi.min.js"></script>
 <script src="formio.full.min.js"></script>
+<script src="Chart.min.js"></script>
 <body>
     <div style="display: inline">
       <div id='visualization'></div>
       <div id='form'></div>
+    </div>
+    <div style="display: block">
+      <canvas id='graph'></canvas>
     </div>
     <script type="text/javascript" src="main.js"></script>
 </body>
