@@ -5,7 +5,7 @@ let fitnessData = []
 var fitnessChart = new Chart(graphCtx, {
     type: 'line',
     data: {
-        'datasets':[
+        datasets: [
             {
                 'label': 'Fitness Graph Over Generations',
                 'data': fitnessData,
@@ -20,6 +20,24 @@ var fitnessChart = new Chart(graphCtx, {
     backgroundColor: 'rgba(0, 0, 0, 0.1)',
     options: {
         maintainAspectRatio: false,
+        title: {
+            display: true,
+            text: 'Fitness Graph Over Generations',
+            position: 'top'
+        },
+        legend: {
+            display: false,
+        },
+        scales:{
+            yAxes: [{
+                display: true,
+                labelString: 'Fitness Score'
+            }],
+            xAxes: [{
+                display: true,
+                labelString: 'Generations'
+            }]
+        }
     }
 });
 let dims = visualizationDiv.getBoundingClientRect();
@@ -343,7 +361,8 @@ var numCritters = 0;
 function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()], size=15){
     //Critter variables - priority for eating strangers, priority for food, priority for escaping
     var rect = new PIXI.Graphics();
-    rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
+    // rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
+    rect.beginFill(PIXI.utils.rgb2hex([0, 0, 0]));
     let smallerDim = (app.renderer.height < app.renderer.width ? app.renderer.height : app.renderer.width) * 0.03;
     let critSize = Math.max(smallerDim * values[0], 15);
     rect.drawRect(0, 0, critSize, critSize);
@@ -363,6 +382,7 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
     crit.cowardPrio = 0;
     crit.moveSpeed = crit.critSize * 0.33;
     crit.adjustedSpeed = crit.moveSpeed;
+    crit.isEaten = false;
     crit.moveUp = () => {
         if (crit.y >= crit.critSize){
             crit.y -= crit.adjustedSpeed;
@@ -411,6 +431,7 @@ function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()
         crit.cowardPrio = 0;
         crit.moveSpeed = crit.critSize * 0.33;
         crit.adjustedSpeed = crit.moveSpeed;
+        crit.isEaten = false;
     }
     crit.interactive = true;
     crit.buttonMode = true;
@@ -473,6 +494,12 @@ function checkFoodHit(value){
             f.move();
             value.hp += 10;
             value.foodEaten += 1;
+            if(!critters.has(value.id)){
+                console.log("IMPOSTER FOUND");
+                console.log(critters);
+                console.log(value);
+                console.log("IMPOSTER KICKED");
+            }
         }
         if(distance(value, f) < closestDis){
             closestDis = distance(value, f);
@@ -491,10 +518,11 @@ function checkCritterHit(value){
 
     let errorCritters = 0;
     critters.forEach(c => {
-        if(value.id != c.id){
+        if(!value.isEaten && value.id != c.id){
             if(Math.abs(value.values[0] - c.values[0]) > DIFF || Math.abs(value.values[1] - c.values[1]) > DIFF || Math.abs(value.values[2] - c.values[2]) > DIFF){
                 if(value.critSize > c.critSize){
                     if(hitTest(value, c)){
+                        c.isEaten = true;
                         value.hp += c.hp;
                         value.crittersEaten += 1;
                         value.updateSize(value.critSize + c.critSize * 0.1);
@@ -530,9 +558,10 @@ function checkCritterHit(value){
                 }
             }
         }
+        errorCritters++;
     });
-    if(errorCritters > 0)
-        console.log(errorCritters);
+    if(errorCritters > NUM_CRITTERS)
+        console.log('ERROR CRITTER', errorCritters);
     value.cannibalPrio = 1 / closestEatableDis * value.values[2];
     value.cowardPrio = 1 / closestDangerDis * value.values[0];
     return closestDangerCritter, closestEatableCritter;
@@ -545,7 +574,7 @@ function critterUpdate(value, delta){
         value.destroy();
     }
     value.adjustedSpeed = value.moveSpeed * delta * SPEED;
-    value.hp -= 0.15 * SPEED;
+    // value.hp -= 0.15 * SPEED;
     value.lifespan += SPEED;
     let closestFood = checkFoodHit(value);
     let closestTarget = closestFood;
@@ -594,13 +623,12 @@ function critterUpdate(value, delta){
 function gameLoop(delta){
     if(numCritters <= 1 || timePassed > 500 / SPEED){
         timePassed = 0;
-        generations++;
         let critterList = [];   // Stores population
         console.log(SELECTION_METHOD);
         destroyedCritters.forEach(critter => console.log(critter.id, numCritters));
         console.log("NUM CRITTERS PRE: ", numCritters);
         critters.forEach(critter => {
-            console.log(critter.id, numCritters);
+            // console.log(critter.id, numCritters);
             critter.destroy();
         });
         let sum = 0;
@@ -612,6 +640,8 @@ function gameLoop(delta){
         fitnessChart.data.datasets.forEach((dataset) => {
             dataset.data.push(sum / critterList.length);
         });
+        fitnessChart.data.labels.push(generations);
+        console.log(fitnessChart.data.datasets);
         fitnessChart.update();
 
         if(SELECTION_METHOD == SelectionMethods.kbest){
@@ -684,11 +714,12 @@ function gameLoop(delta){
             critters.set(crit.id, crit);
             numCritters++;
         }
-        test = 0
-        critters.forEach(critter => {
-            console.log("CRITTERCHECK" + test++);
-        });
+        // test = 0
+        // critters.forEach(critter => {
+        //     console.log("CRITTERCHECK" + test++);
+        // });
         destroyedCritters.clear();
+        generations++;
         console.log("GEN", generations);
         console.log("NUM CRITTERS END: ", numCritters);
     }
@@ -698,6 +729,8 @@ function gameLoop(delta){
             critterUpdate(critter, delta);
             i++;
         });
+        if(i > NUM_CRITTERS)
+            console.log("ERROR: INVIS CRITTERS");
         // console.log(i);
         timePassed++;
     }
@@ -705,19 +738,19 @@ function gameLoop(delta){
 
 app.ticker.add(gameLoop);
 
-let rightKey = keyboard('ArrowRight');
-rightKey.press = () => {
-    critters.get(cr.id).moveRight();
-}
-let leftKey = keyboard('ArrowLeft');
-leftKey.press = () => {
-    critters.get(cr.id).moveLeft();
-}
-let upKey = keyboard('ArrowUp');
-upKey.press = () => {
-    critters.get(cr.id).moveUp();
-}
-let downKey = keyboard('ArrowDown');
-downKey.press = () => {
-    critters.get(cr.id).moveDown();
-}
+// let rightKey = keyboard('ArrowRight');
+// rightKey.press = () => {
+//     critters.get(cr.id).moveRight();
+// }
+// let leftKey = keyboard('ArrowLeft');
+// leftKey.press = () => {
+//     critters.get(cr.id).moveLeft();
+// }
+// let upKey = keyboard('ArrowUp');
+// upKey.press = () => {
+//     critters.get(cr.id).moveUp();
+// }
+// let downKey = keyboard('ArrowDown');
+// downKey.press = () => {
+//     critters.get(cr.id).moveDown();
+// }
