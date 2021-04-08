@@ -702,7 +702,7 @@ function gameLoop(delta){
         // maxFood = Math.max(maxFood, sumFood);
         // maxTime = Math.max(maxTime, sumTime);
         fitnessChart.data.datasets[0].data.push(sumHP / critterList.length / 600);
-        fitnessChart.data.datasets[1].data.push(sumEaten / critterList.length);
+        fitnessChart.data.datasets[1].data.push(sumEaten / critterList.length / 15);
         fitnessChart.data.datasets[2].data.push(sumFood / critterList.length / 10);
         fitnessChart.data.datasets[3].data.push(sumTime / critterList.length / 100);
         fitnessChart.data.labels.push(generations);
