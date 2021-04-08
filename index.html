@@ -1,48 +1,117 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-  <title>AIS Genetic Algorithm</title>
-  <meta name="description" content="AIS - Genetic Algorithm Visualization">
-  <meta name="author" content="Usaid M">
-  <style>
-    html, body {
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <style>
+      html, body{
         margin: 0;
-        width: 100%;
         height: 100%;
-    }
-    #visualization{
-      width: 80%;
-      height: 80%;
-      float: left;
-      display: inline-block;
-    }
-    #form{
-      width: 20%;
-      height: 80%;
-      display: inline-block;
-    }
-    #graph{
-      height:20%;
-      display: block;
-    }
-    canvas {
-      display: block;
-    }
-  </style>
-</head>
-<script src="pixi.min.js"></script>
-<script src="formio.full.min.js"></script>
-<script src="Chart.min.js"></script>
-<body>
-    <div style="display: inline">
-      <div id='visualization'></div>
-      <div id='form'></div>
+        width: 100%;
+      }
+      .main-wrapper{
+        height: 100%;
+      }
+      #visualization{
+        height: 80%;
+      }
+    </style>
+    <title>AIS Genetic Algorithm Visualization</title>
+  </head>
+  <body>
+    <div class="container-fluid h-100">
+      <div class="row h-100">
+        <div class="col-8 section h-100">
+          <div id="visualization" class="row">
+          </div>
+          <div class="row flex-grow-1">
+            <canvas id='graph' class="h-100"></canvas>
+          </div>
+        </div>
+        <div class="col-4 section h-100">
+          <form>
+            <p>Welcome to AIS's Genetic Algorithm Visualization! The objective of the square "critters" on the right is to survive as long as possible and expand their-color species! Adjust the parameters below and see how it affects the genetic algorithm.</p>
+            <div class="form-group">
+              <label for="visSpeed">Visualization Speed</label>
+              <input type="number" class="form-control" id="visSpeed" aria-describedby="emailHelp" value="1">
+              <small id="visHelp" class="form-text text-muted">Speed of Visualization - keep between 0 to 2 for stable results</small>
+            </div>
+            <div class="form-group">
+              <label for="numCritters">Number of Critters</label>
+              <input type="number" class="form-control" id="numCritters" value="10">
+              <small id="numHelp" class="form-text text-muted">Number of Critters per Generation in Visualization</small>
+            </div>
+            <div class="form-group">
+              <label for="mutPerc">Mutation Percentage (%)</label>
+              <input type="number" class="form-control" id="mutPerc" value="75">
+              <small id="mutPercHelp" class="form-text text-muted">Percentage of newly-added critters that are mutated per-generation</small>
+            </div>
+            <div class="form-group">
+              <label for="mutRate">Mutation Rate</label>
+              <input type="number" class="form-control" id="mutRate" value="50">
+              <small id="mutRateHelp" class="form-text text-muted">Percentage of attributes in mutated critter to modify</small>
+            </div>
+            <div class="form-group">
+              <label for="mutModifier">Mutation Modifier</label>
+              <input type="number" class="form-control" id="mutModifier" value="10">
+              <small id="numHelp" class="form-text text-muted">% modification to mutated attributes</small>
+            </div>
+            <div class="form-group">
+              <label class="form-check-label" for="fitnessFunc">Fitness Function</label>
+              <small id="numHelp" class="form-text text-muted">What algorithm is optimizing for at generation end.</small>
+              <div class="form-group" id="fitnessFunc">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="fitnessRadio" id="fitnessFuncHP" value="hp" checked>
+                  <label class="form-check-label" for="fitnessFuncHP">HP (Health Points)</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="fitnessRadio" id="fitnessFuncCritters" value="critters">
+                  <label class="form-check-label" for="fitnessFuncCritters">Critters Eaten</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="fitnessRadio" id="fitnessFuncFood" value="food">
+                  <label class="form-check-label" for="fitnessFuncFood">Food Eaten</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="fitnessRadio" id="fitnessFuncTime" value="time">
+                  <label class="form-check-label" for="fitnessFuncTime">Time Alive</label>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-check-label" for="selMethod">Selection Method</label>
+              <small id="numHelp" class="form-text text-muted">Method algorithm picks best critters at generation end.</small>
+              <div class="form-group" id="selMethod">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="selRadio" id="selMethodKBest" value="kbest" checked>
+                  <label class="form-check-label" for="selMethodKBest">K-Best</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="selRadio" id="selMethodTournament" value="tournament">
+                  <label class="form-check-label" for="selMethodTournament">Tournament</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="selRadio" id="selMethodRoulette" value="roulette">
+                  <label class="form-check-label" for="selMethodRoulette">Roulette</label>
+                </div>
+              </div>
+            </div>
+            <button id="apply" type="button" class="btn btn-primary">Apply</button>
+          </form>
+        </div>
+      </div>
     </div>
-    <div style="display: block">
-      <canvas id='graph'></canvas>
-    </div>
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <script src="Chart.min.js"></script>
+    <script src="pixi.min.js"></script>
+    <!-- <script src="formio.full.min.js"></script> -->
     <script type="text/javascript" src="main.js"></script>
-</body>
+  </body>
 </html>

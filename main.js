@@ -1,51 +1,80 @@
 //Create a Pixi Application
 var visualizationDiv = document.getElementById('visualization');
 var graphCtx = document.getElementById('graph');
-let fitnessData = []
-var fitnessChart = new Chart(graphCtx, {
-    type: 'line',
-    data: {
-        datasets: [
-            {
-                'label': 'Fitness Graph Over Generations',
-                'data': fitnessData,
-                'fill': false,
-                'cubicInterpolationMode': 'monotone',
+function createChart(context){
+    return new Chart(context, {
+        type: 'line',
+        data: {
+            datasets: [
+                {
+                    'label': 'HP',
+                    'data': [],
+                    'fill': false,
+                    'cubicInterpolationMode': 'monotone',
+                    'backgroundColor': 'rgba(0, 200, 0, 1)',
+                    'borderColor': 'rgba(0, 200, 0, 1)'
+                },
+                {
+                    'label': 'Critters Eaten',
+                    'data': [],
+                    'fill': false,
+                    'cubicInterpolationMode': 'monotone',
+                    'backgroundColor': 'rgba(200, 0, 0, 1)',
+                    'borderColor': 'rgba(200, 0, 0, 1)'
+                },
+                {
+                    'label': 'Food Eaten',
+                    'data': [],
+                    'fill': false,
+                    'cubicInterpolationMode': 'monotone',
+                    'backgroundColor': 'rgba(0, 200, 100, 1)',
+                    'borderColor': 'rgba(0, 200, 100, 1)'
+                },
+                {
+                    'label': 'Time Alive',
+                    'data': [],
+                    'fill': false,
+                    'cubicInterpolationMode': 'monotone',
+                    'backgroundColor': 'rgba(0, 0, 200, 1)',
+                    'borderColor': 'rgba(0, 0, 200, 1)'
+                },
+            ]
+        },
+        label: 'Fitness Graph Over Generations',
+        xAxisID: 'Generations',
+        yAxisID: 'Average Gen. Fitness',
+        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+        options: {
+            maintainAspectRatio: false,
+            title: {
+                display: true,
+                text: 'Fitness Graph Over Generations',
+                position: 'top'
+            },
+            legend: {
+                display: true,
+            },
+            scales:{
+                yAxes: [{
+                    display: true,
+                    labelString: 'Fitness Score'
+                }],
+                xAxes: [{
+                    display: true,
+                    labelString: 'Generations'
+                }]
             }
-        ]
-    },
-    label: 'Fitness Graph Over Generations',
-    xAxisID: 'Generations',
-    yAxisID: 'Average Gen. Fitness',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    options: {
-        maintainAspectRatio: false,
-        title: {
-            display: true,
-            text: 'Fitness Graph Over Generations',
-            position: 'top'
-        },
-        legend: {
-            display: false,
-        },
-        scales:{
-            yAxes: [{
-                display: true,
-                labelString: 'Fitness Score'
-            }],
-            xAxes: [{
-                display: true,
-                labelString: 'Generations'
-            }]
         }
-    }
-});
+    });
+}
+var fitnessChart = createChart(graphCtx);
 let dims = visualizationDiv.getBoundingClientRect();
 let app = new PIXI.Application({
     // width: document.body.clientWidth,
     // height: document.body.clientHeight,
     width: dims.width,
     height: dims.height,
+    // resizeTo: window,
 });
 app.renderer.backgroundColor = 0xcccccc;
 console.log(document.body.clientHeight)
@@ -73,206 +102,206 @@ var SELECTION_METHOD = SelectionMethods.kbest;
 var FITNESS_METHOD = FitnessMethods.hp;
 var restartFunc;
 
-Formio.createForm(document.getElementById('form'), {
-    "components": [
-        {
-            "label": "Description",
-            "attrs": [
-                {
-                    "attr": "",
-                    "value": ""
-                }
-            ],
-            "content": "Welcome to AIS's Genetic Algorithm Visualization! The objective of the square \"critters\" on the right is to survive as long as possible and expand their-color species! Adjust the parameters below and see how it affects the genetic algorithm.",
-            "refreshOnChange": false,
-            "key": "description",
-            "type": "htmlelement",
-            "input": false,
-            "tableView": false
-        },
-        {
-            "label": "Speed of the visualization:",
-            "labelPosition": "left-left",
-            "autocomplete": "off",
-            "tableView": true,
-            "key": "speedOfTheVisualization",
-            "type": "textfield",
-            "input": true,
-            "labelMargin": 2,
-            "labelWidth": 25
-        },
-        {
-            "label": "Number of Critters",
-            "labelPosition": "left-left",
-            "placeholder": "10",
-            "description": "Number of critters per generation",
-            "tableView": true,
-            "key": "numberOfCritters",
-            "type": "textfield",
-            "input": true,
-            "labelWidth": 25,
-            "labelMargin": 2
-        },
-        {
-            "label": "Mutated Percentage",
-            "labelPosition": "left-left",
-            "placeholder": "75",
-            "description": "% of critters per generation that are mutated from last generation selection",
-            "tableView": true,
-            "key": "mutatedPercentage",
-            "type": "textfield",
-            "input": true,
-            "labelWidth": 25,
-            "labelMargin": 2
-        },
-        {
-            "label": "Mutation Rate",
-            "labelPosition": "left-left",
-            "placeholder": "50",
-            "description": "% chance to change genes of critter for mutation",
-            "tableView": true,
-            "key": "mutationRate",
-            "type": "textfield",
-            "input": true,
-            "labelWidth": 25,
-            "labelMargin": 2
-        },
-        {
-            "label": "Mutation Modifier",
-            "labelPosition": "left-left",
-            "placeholder": "10",
-            "description": "% to mutate a weight once it has been selected",
-            "tableView": true,
-            "key": "mutationModifier",
-            "type": "textfield",
-            "input": true,
-            "labelWidth": 25,
-            "labelMargin": 2
-        },
-        {
-            "label": "Select Fitness Function",
-            "labelPosition": "left-left",
-            "widget": "html5",
-            "placeholder": "HP",
-            "description": "Choose the Fitness option the Genetic Algorithm will optimize for",
-            "uniqueOptions": true,
-            "tableView": true,
-            "data": {
-                "values": [
-                    {
-                        "label": "HP",
-                        "value": "hp"
-                    },
-                    {
-                        "label": "Critters Eaten",
-                        "value": "crittersEaten"
-                    },
-                    {
-                        "label": "Food Eaten",
-                        "value": "foodEaten"
-                    },
-                    {
-                        "label": "Time Alive",
-                        "value": "timeAlive"
-                    }
-                ]
-            },
-            "dataType": "string",
-            "selectThreshold": 0.3,
-            "key": "selectFitnessFunction",
-            "type": "select",
-            "labelWidth": 25,
-            "labelMargin": 2,
-            "input": true,
-            "defaultValue": "hp"
-        },
-        {
-            "label": "Selection Method Options",
-            "labelPosition": "left-left",
-            "optionsLabelPosition": "right",
-            "description": "Method used to select critters to use in every generation.",
-            "inline": false,
-            "tableView": false,
-            "values": [
-                {
-                    "label": "K-Best",
-                    "value": "kBest",
-                    "shortcut": ""
-                },
-                {
-                    "label": "Tournament",
-                    "value": "tournament",
-                    "shortcut": ""
-                },
-                {
-                    "label": "Roulette",
-                    "value": "roulette",
-                    "shortcut": ""
-                }
-            ],
-            "key": "selectionMethodOptions",
-            "type": "radio",
-            "input": true,
-            "defaultValue": "kBest",
-            "labelWidth": 25,
-            "labelMargin": 2
-        },
-        {
-            "label": "Apply",
-            "action": "event",
-            "showValidations": false,
-            "description": "Restart visualization with new genetic algorithm settings.",
-            "tableView": false,
-            "key": "apply",
-            "type": "button",
-            "input": true,
-            "event": "refreshData"
-        }
-    ]
-}).then(function(form){
-    form.on('refreshData', (values) => {
-        console.log(values);
-        if(values.speedOfTheVisualization){
-            SPEED = values.speedOfTheVisualization;
-        }
-        if(values.numberOfCritters){
-            NUM_CRITTERS = values.numberOfCritters;
-        }
-        if(values.mutatedPercentage){
-            let perc = Math.max(values.mutatedPercentage, 0);
-            perc = Math.min(values.mutatedPercentage, 100);
-            MUTATED_PERC = perc / 100;
-        }
-        if(values.mutationRate){
-            let perc = Math.max(values.mutationRate, 0);
-            perc = Math.min(values.mutationRate, 100);
-            MUTATION_RATE = values.mutationRate;
-        }
-        if(values.mutationModifier){
-            let perc = Math.max(values.mutationModifier, 0);
-            perc = Math.min(values.mutationModifier, 100);
-            MUTATION_PERC = values.mutationModifier;
-        }
-        if(values.selectFitnessFunction){
-            if(values.selectFitnessFunction == 'hp')
-                FITNESS_METHOD = FitnessMethods.hp;
-            else if(values.selectFitnessFunction == 'crittersEaten')
-                FITNESS_METHOD = FitnessMethods.crittersEaten;
-            else if(values.selectFitnessFunction == 'foodEaten')
-                FITNESS_METHOD = FitnessMethods.foodEaten;
-            else
-                FITNESS_METHOD = FitnessMethods.timeAlive;
-        }
-        if(values.selectionMethodOptions){
-            if(values.selectionMethodOptions == 'tournament')
-                SELECTION_METHOD = SelectionMethods.tournament;
-            else if(values.selectionMethodOption == 'kBest')
-                SELECTION_METHOD == SelectionMethods.kbest;
-            else
-                SELECTION_METHOD == SelectionMethods.roulette;
-        }
-    });
-});
+// Formio.createForm(document.getElementById('form'), {
+//     "components": [
+//         {
+//             "label": "Description",
+//             "attrs": [
+//                 {
+//                     "attr": "",
+//                     "value": ""
+//                 }
+//             ],
+//             "content": "Welcome to AIS's Genetic Algorithm Visualization! The objective of the square \"critters\" on the right is to survive as long as possible and expand their-color species! Adjust the parameters below and see how it affects the genetic algorithm.",
+//             "refreshOnChange": false,
+//             "key": "description",
+//             "type": "htmlelement",
+//             "input": false,
+//             "tableView": false
+//         },
+//         {
+//             "label": "Speed of the visualization:",
+//             "labelPosition": "left-left",
+//             "autocomplete": "off",
+//             "tableView": true,
+//             "key": "speedOfTheVisualization",
+//             "type": "textfield",
+//             "input": true,
+//             "labelMargin": 2,
+//             "labelWidth": 25
+//         },
+//         {
+//             "label": "Number of Critters",
+//             "labelPosition": "left-left",
+//             "placeholder": "10",
+//             "description": "Number of critters per generation",
+//             "tableView": true,
+//             "key": "numberOfCritters",
+//             "type": "textfield",
+//             "input": true,
+//             "labelWidth": 25,
+//             "labelMargin": 2
+//         },
+//         {
+//             "label": "Mutated Percentage",
+//             "labelPosition": "left-left",
+//             "placeholder": "75",
+//             "description": "% of critters per generation that are mutated from last generation selection",
+//             "tableView": true,
+//             "key": "mutatedPercentage",
+//             "type": "textfield",
+//             "input": true,
+//             "labelWidth": 25,
+//             "labelMargin": 2
+//         },
+//         {
+//             "label": "Mutation Rate",
+//             "labelPosition": "left-left",
+//             "placeholder": "50",
+//             "description": "% chance to change genes of critter for mutation",
+//             "tableView": true,
+//             "key": "mutationRate",
+//             "type": "textfield",
+//             "input": true,
+//             "labelWidth": 25,
+//             "labelMargin": 2
+//         },
+//         {
+//             "label": "Mutation Modifier",
+//             "labelPosition": "left-left",
+//             "placeholder": "10",
+//             "description": "% to mutate a weight once it has been selected",
+//             "tableView": true,
+//             "key": "mutationModifier",
+//             "type": "textfield",
+//             "input": true,
+//             "labelWidth": 25,
+//             "labelMargin": 2
+//         },
+//         {
+//             "label": "Select Fitness Function",
+//             "labelPosition": "left-left",
+//             "widget": "html5",
+//             "placeholder": "HP",
+//             "description": "Choose the Fitness option the Genetic Algorithm will optimize for",
+//             "uniqueOptions": true,
+//             "tableView": true,
+//             "data": {
+//                 "values": [
+//                     {
+//                         "label": "HP",
+//                         "value": "hp"
+//                     },
+//                     {
+//                         "label": "Critters Eaten",
+//                         "value": "crittersEaten"
+//                     },
+//                     {
+//                         "label": "Food Eaten",
+//                         "value": "foodEaten"
+//                     },
+//                     {
+//                         "label": "Time Alive",
+//                         "value": "timeAlive"
+//                     }
+//                 ]
+//             },
+//             "dataType": "string",
+//             "selectThreshold": 0.3,
+//             "key": "selectFitnessFunction",
+//             "type": "select",
+//             "labelWidth": 25,
+//             "labelMargin": 2,
+//             "input": true,
+//             "defaultValue": "hp"
+//         },
+//         {
+//             "label": "Selection Method Options",
+//             "labelPosition": "left-left",
+//             "optionsLabelPosition": "right",
+//             "description": "Method used to select critters to use in every generation.",
+//             "inline": false,
+//             "tableView": false,
+//             "values": [
+//                 {
+//                     "label": "K-Best",
+//                     "value": "kBest",
+//                     "shortcut": ""
+//                 },
+//                 {
+//                     "label": "Tournament",
+//                     "value": "tournament",
+//                     "shortcut": ""
+//                 },
+//                 {
+//                     "label": "Roulette",
+//                     "value": "roulette",
+//                     "shortcut": ""
+//                 }
+//             ],
+//             "key": "selectionMethodOptions",
+//             "type": "radio",
+//             "input": true,
+//             "defaultValue": "kBest",
+//             "labelWidth": 25,
+//             "labelMargin": 2
+//         },
+//         {
+//             "label": "Apply",
+//             "action": "event",
+//             "showValidations": false,
+//             "description": "Restart visualization with new genetic algorithm settings.",
+//             "tableView": false,
+//             "key": "apply",
+//             "type": "button",
+//             "input": true,
+//             "event": "refreshData"
+//         }
+//     ]
+// }).then(function(form){
+//     form.on('refreshData', (values) => {
+//         console.log(values);
+//         if(values.speedOfTheVisualization){
+//             SPEED = values.speedOfTheVisualization;
+//         }
+//         if(values.numberOfCritters){
+//             NUM_CRITTERS = values.numberOfCritters;
+//         }
+//         if(values.mutatedPercentage){
+//             let perc = Math.max(values.mutatedPercentage, 0);
+//             perc = Math.min(values.mutatedPercentage, 100);
+//             MUTATED_PERC = perc / 100;
+//         }
+//         if(values.mutationRate){
+//             let perc = Math.max(values.mutationRate, 0);
+//             perc = Math.min(values.mutationRate, 100);
+//             MUTATION_RATE = values.mutationRate;
+//         }
+//         if(values.mutationModifier){
+//             let perc = Math.max(values.mutationModifier, 0);
+//             perc = Math.min(values.mutationModifier, 100);
+//             MUTATION_PERC = values.mutationModifier;
+//         }
+//         if(values.selectFitnessFunction){
+//             if(values.selectFitnessFunction == 'hp')
+//                 FITNESS_METHOD = FitnessMethods.hp;
+//             else if(values.selectFitnessFunction == 'crittersEaten')
+//                 FITNESS_METHOD = FitnessMethods.crittersEaten;
+//             else if(values.selectFitnessFunction == 'foodEaten')
+//                 FITNESS_METHOD = FitnessMethods.foodEaten;
+//             else
+//                 FITNESS_METHOD = FitnessMethods.timeAlive;
+//         }
+//         if(values.selectionMethodOptions){
+//             if(values.selectionMethodOptions == 'tournament')
+//                 SELECTION_METHOD = SelectionMethods.tournament;
+//             else if(values.selectionMethodOption == 'kBest')
+//                 SELECTION_METHOD == SelectionMethods.kbest;
+//             else
+//                 SELECTION_METHOD == SelectionMethods.roulette;
+//         }
+//     });
+// });
 
 function weighted_random(items, weights) {  // https://stackoverflow.com/a/55671924
     var i;
@@ -354,15 +383,18 @@ function keyboard(value) {
 }
 
 var idTracker = 0;
-let critters = new Map();
+var critters = new Map();
 var destroyedCritters = new Map();
 var numCritters = 0;
+var foods = [];
+var generations = 0;
+var timePassed = 0;
 
 function createCritter(x, y, values=[Math.random(), Math.random(), Math.random()], size=15){
     //Critter variables - priority for eating strangers, priority for food, priority for escaping
     var rect = new PIXI.Graphics();
-    // rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
-    rect.beginFill(PIXI.utils.rgb2hex([0, 0, 0]));
+    rect.beginFill(PIXI.utils.rgb2hex([values[2], values[1], values[0]]));
+    // rect.beginFill(PIXI.utils.rgb2hex([0, 0, 0]));
     let smallerDim = (app.renderer.height < app.renderer.width ? app.renderer.height : app.renderer.width) * 0.03;
     let critSize = Math.max(smallerDim * values[0], 15);
     rect.drawRect(0, 0, critSize, critSize);
@@ -469,18 +501,41 @@ function createFood(){
         food.x = Math.random() * (app.renderer.width * 0.9) + app.renderer.width * 0.05;
         food.y = Math.random() * (app.renderer.height * 0.9) + app.renderer.height * 0.05;
     }
+    food.destroy = () => {
+        app.stage.removeChild(food);
+    }
     food.move();
     app.stage.addChild(food);
     return food;
 }
 
-let foods = [];
-for(i = 0; i < 100; i++)
-    foods.push(createFood());
-
-for(var i = 0; i < NUM_CRITTERS; i++){
-    addCritter(createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height));
+function reset(){
+    SPEED = document.getElementById('visSpeed').value;
+    // NUM_CRITTERS = document.getElementById('numCritters').value;
+    console.log(document.getElementById('numCritters').value);
+    MUTATION_RATE = document.getElementById('mutRate').value / 100;
+    MUTATED_PERC = document.getElementById('mutPerc').value / 100;
+    MUTATION_PERC = document.getElementById('mutModifier').value / 100;
+    critters.forEach(c => c.destroy());
+    foods.forEach(f => f.destroy());
+    idTracker = 0;
+    critters = new Map();
+    destroyedCritters = new Map();
+    numCritters = 0;
+    foods = [];
+    generations = 0;
+    timePassed = 0;
+    for(i = 0; i < 100; i++)
+        foods.push(createFood());
+    for(var i = 0; i < NUM_CRITTERS; i++){
+        addCritter(createCritter((Math.random() * 0.8 + 0.1) * app.renderer.width, (Math.random() * 0.8 + 0.1) * app.renderer.height));
+    }
+    fitnessChart.destroy();
+    graphCtx = document.getElementById('graph');
+    fitnessChart = createChart(graphCtx);
 }
+
+
 
 function distance(obj1, obj2){
     return Math.abs(obj1.x - obj2.x) + Math.abs(obj1.y - obj2.y);
@@ -495,10 +550,7 @@ function checkFoodHit(value){
             value.hp += 10;
             value.foodEaten += 1;
             if(!critters.has(value.id)){
-                console.log("IMPOSTER FOUND");
-                console.log(critters);
-                console.log(value);
-                console.log("IMPOSTER KICKED");
+                value.destroy();
             }
         }
         if(distance(value, f) < closestDis){
@@ -567,8 +619,7 @@ function checkCritterHit(value){
     return closestDangerCritter, closestEatableCritter;
 }
 
-var generations = 0;
-var timePassed = 0;
+
 function critterUpdate(value, delta){
     if(value.hp <= 0){
         value.destroy();
@@ -620,6 +671,10 @@ function critterUpdate(value, delta){
     }
 }
 
+var maxHP = 0;
+var maxEaten = 0;
+var maxFood = 0;
+var maxTime = 0;
 function gameLoop(delta){
     if(numCritters <= 1 || timePassed > 500 / SPEED){
         timePassed = 0;
@@ -631,15 +686,25 @@ function gameLoop(delta){
             // console.log(critter.id, numCritters);
             critter.destroy();
         });
-        let sum = 0;
-        console.log("NUM CRITTERS BEFORE: ", numCritters);
+        let sumHP = 0;
+        let sumEaten = 0;
+        let sumFood = 0;
+        let sumTime = 0;
         for(let [key, crit] of destroyedCritters){
-            sum += getFitness(crit);
+            sumHP += crit.hp;
+            sumEaten += crit.crittersEaten;
+            sumFood += crit.foodEaten;
+            sumTime += crit.lifespan;
             critterList.push(crit);
         }
-        fitnessChart.data.datasets.forEach((dataset) => {
-            dataset.data.push(sum / critterList.length);
-        });
+        // maxHP = Math.max(maxHP, sumHP);
+        // maxEaten = Math.max(maxEaten, sumEaten);
+        // maxFood = Math.max(maxFood, sumFood);
+        // maxTime = Math.max(maxTime, sumTime);
+        fitnessChart.data.datasets[0].data.push(sumHP / critterList.length / 600);
+        fitnessChart.data.datasets[1].data.push(sumEaten / critterList.length);
+        fitnessChart.data.datasets[2].data.push(sumFood / critterList.length / 10);
+        fitnessChart.data.datasets[3].data.push(sumTime / critterList.length / 100);
         fitnessChart.data.labels.push(generations);
         console.log(fitnessChart.data.datasets);
         fitnessChart.update();
@@ -738,6 +803,15 @@ function gameLoop(delta){
 
 app.ticker.add(gameLoop);
 
+// document.getElementById('apply').addEventListener('click', function(){
+//     SPEED = document.getElementById('visSpeed').value;
+//     NUM_CRITTERS = document.getElementById('numCritters').value;
+//     MUTATION_RATE = document.getElementById('mutRate').value / 100;
+//     MUTATED_PERC = document.getElementById('mutPerc').value / 100;
+//     MUTATION_PERC = document.getElementById('mutModifier').value / 100;
+// });
+document.getElementById('apply').addEventListener('click', reset);
+reset();
 // let rightKey = keyboard('ArrowRight');
 // rightKey.press = () => {
 //     critters.get(cr.id).moveRight();
